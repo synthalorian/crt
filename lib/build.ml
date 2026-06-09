@@ -66,41 +66,58 @@ let output_path_for ~input_dir ~output_dir input_path =
   ensure_dir out_dir;
   Filename.concat out_dir html_name
 
-let build_file ~input_path ~output_path ?(dev_mode = false) () =
+let get_mtime path =
   try
-    let content = read_file input_path in
-    let doc = Transform.parse content in
-    let doc = Transform.toc doc in
-    let doc = Transform.highlight doc in
-    let title =
-      let rec find_h1 = function
-        | [] -> None
-        | Ast.Heading { level = 1; content } :: _ ->
-            let rec text_of_inline = function
-              | Ast.Text s -> s
-              | Ast.Bold children | Ast.Italic children ->
-                  String.concat "" (List.map text_of_inline children)
-              | Ast.Code s -> s
-              | Ast.Link { text; _ } -> String.concat "" (List.map text_of_inline text)
-              | Ast.Break -> " "
-            in
-            Some (String.concat "" (List.map text_of_inline content))
-        | _ :: rest -> find_h1 rest
-      in
-      match find_h1 doc with
-      | Some t -> t
-      | None -> Filename.basename input_path
-    in
-    let html = Renderer.render_page ~title ~dev_mode doc in
-    write_file output_path html;
-    Printf.printf "  [build] %s -> %s\n%!" input_path output_path;
-    Ok ()
+    let stats = Unix.stat path in
+    stats.Unix.st_mtime
+  with _ -> 0.0
+
+let build_file ~cache ~input_path ~output_path ?(dev_mode = false) () =
+  try
+    let mtime = get_mtime input_path in
+    let cache_key = "build:" ^ input_path in
+    (* Check if we can use the cached output *)
+    match Cache.get cache ~key:cache_key ~mtime with
+    | Some cached_html ->
+        write_file output_path cached_html;
+        Printf.printf "  [build] %s -> %s (cached)\n%!" input_path output_path;
+        Ok ()
+    | None ->
+        let content = read_file input_path in
+        let doc = Transform.parse content in
+        let doc = Transform.toc doc in
+        let doc = Transform.highlight doc in
+        let title =
+          let rec find_h1 = function
+            | [] -> None
+            | Ast.Heading { level = 1; content } :: _ ->
+                let rec text_of_inline = function
+                  | Ast.Text s -> s
+                  | Ast.Bold children | Ast.Italic children ->
+                      String.concat "" (List.map text_of_inline children)
+                  | Ast.Code s -> s
+                  | Ast.Link { text; _ } -> String.concat "" (List.map text_of_inline text)
+                  | Ast.Break -> " "
+                in
+                Some (String.concat "" (List.map text_of_inline content))
+            | _ :: rest -> find_h1 rest
+          in
+          match find_h1 doc with
+          | Some t -> t
+          | None -> Filename.basename input_path
+        in
+        let html = Renderer.render_page ~title ~dev_mode doc in
+        write_file output_path html;
+        Cache.set cache ~key:cache_key ~mtime html;
+        Printf.printf "  [build] %s -> %s\n%!" input_path output_path;
+        Ok ()
   with exn ->
     Error (Printexc.to_string exn)
 
-let build ~input_dir ~output_dir ?(dev_mode = false) () =
+let build ~input_dir ~output_dir ?(dev_mode = false) ?(cache_dir = ".crt_cache") () =
   Printf.printf "[build] Building from %s to %s\n%!" input_dir output_dir;
   ensure_dir output_dir;
+  let cache = Cache.create ~dir:cache_dir in
   let files = collect_markdown [] input_dir in
   if files = [] then
     Printf.printf "[build] No markdown files found in %s\n%!" input_dir
@@ -108,7 +125,7 @@ let build ~input_dir ~output_dir ?(dev_mode = false) () =
     Printf.printf "[build] Found %d markdown file(s)\n%!" (List.length files);
   let results = List.map (fun input_path ->
     let output_path = output_path_for ~input_dir ~output_dir input_path in
-    build_file ~input_path ~output_path ~dev_mode ()
+    build_file ~cache ~input_path ~output_path ~dev_mode ()
   ) files in
   let errors = List.filter_map (function Error e -> Some e | Ok () -> None) results in
   match errors with
@@ -119,8 +136,8 @@ let build ~input_dir ~output_dir ?(dev_mode = false) () =
       Printf.printf "[build] Build completed with %d error(s).\n%!" (List.length errors);
       Error (String.concat "\n" errors)
 
-let build_with_watch ~input_dir ~output_dir ~delay ?(dev_mode = false) ?(on_build_complete = fun () -> ()) () =
-  let result = build ~input_dir ~output_dir ~dev_mode () in
+let build_with_watch ~input_dir ~output_dir ~delay ?(dev_mode = false) ?(cache_dir = ".crt_cache") ?(on_build_complete = fun () -> ()) () =
+  let result = build ~input_dir ~output_dir ~dev_mode ~cache_dir () in
   (match result with
   | Ok () -> on_build_complete ()
   | Error e -> Printf.printf "[build] Initial build failed: %s\n%!" e);
@@ -135,7 +152,7 @@ let build_with_watch ~input_dir ~output_dir ~delay ?(dev_mode = false) ?(on_buil
     ~delay
     ~on_change:(fun _changed_files ->
       Printf.printf "[build] Rebuilding...\n%!";
-      match build ~input_dir ~output_dir ~dev_mode () with
+      match build ~input_dir ~output_dir ~dev_mode ~cache_dir () with
       | Ok () -> on_build_complete ()
       | Error e -> Printf.printf "[build] Rebuild failed: %s\n%!" e
     )
@@ -143,7 +160,7 @@ let build_with_watch ~input_dir ~output_dir ~delay ?(dev_mode = false) ?(on_buil
   
   Ok ()
 
-let serve ~input_dir ~output_dir ~port ~delay () =
+let serve ~input_dir ~output_dir ~port ~delay ?(cache_dir = ".crt_cache") () =
   let server = Server.create ~port () in
   let should_stop = ref false in
   let handle_signal _ = should_stop := true; Server.stop server in
@@ -164,6 +181,7 @@ let serve ~input_dir ~output_dir ~port ~delay () =
     ~output_dir
     ~delay
     ~dev_mode:true
+    ~cache_dir
     ~on_build_complete:(fun () -> Server.broadcast_reload server)
     ()
   in

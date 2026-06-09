@@ -46,6 +46,11 @@ val both : 'a t -> 'b t -> ('a * 'b) t
 
 (** {1 Utilities} *)
 
+val cached : string -> 'a t -> 'a t
+(** [cached name p] wraps pipeline [p] with a named cache layer.
+    Results are stored in a cache and reused on subsequent runs
+    if the cache entry is still valid. *)
+
 val trace : ('a -> unit) -> 'a t -> 'a t
 (** [trace f p] applies [f] to the output of [p] for side effects
     (logging, debugging), then returns the value unchanged. *)
@@ -53,6 +58,11 @@ val trace : ('a -> unit) -> 'a t -> 'a t
 val run : 'a t -> ('a, exn) result
 (** [run p] executes pipeline [p] and returns its result,
     catching any exceptions. *)
+
+val run_cached : cache:Cache.t -> 'a t -> ('a, exn) result
+(** [run_cached ~cache p] executes pipeline [p] with caching.
+    Intermediate results for named nodes and [cached] wrappers
+    are stored in [cache] and reused when available. *)
 
 val to_string : 'a t -> string
 (** [to_string p] returns a string representation of the pipeline structure. *)

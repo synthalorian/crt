@@ -17,3 +17,7 @@
 (test
  (name test_watcher)
  (libraries crt_lib))
+
+(test
+ (name test_cache)
+ (libraries crt_lib))

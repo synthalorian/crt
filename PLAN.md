@@ -97,12 +97,18 @@ Static site generator that treats content as a signal pipeline — markdown in, 
 **Goal:** Phase 6: Incremental build cache
 
 **Deliverables:**
-- [ ] Core implementation
-- [ ] Tests
-- [ ] Documentation update
+- [x] Core implementation
+- [x] Tests
+- [x] Documentation update
 
 **Notes:**
-- 
+- Implemented `Cache` module in `lib/cache.ml` with disk-based persistence, mtime tracking, and automatic invalidation.
+- Added `Cached` constructor to pipeline GADT in `lib/pipeline.ml`.
+- Added `Pipeline.cached` combinator for wrapping subtrees with caching.
+- Added `Pipeline.run_cached` for cache-aware pipeline execution that stores and reuses intermediate results.
+- Integrated cache into `Build.build_file` — skips processing when input file mtime matches cached entry.
+- Added 13 cache unit tests in `test/test_cache.ml` covering create, get/set, mtime invalidation, missing keys, invalidate, clear, is_valid, and pipeline caching.
+- All existing tests continue to pass. 
 
 ---
 
