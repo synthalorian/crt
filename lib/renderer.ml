@@ -77,7 +77,17 @@ let render doc =
   List.iter (block_to_html buf) doc;
   Buffer.contents buf
 
-let render_page ?(title = "Untitled") ?(css = []) doc =
+let reload_script =
+  "<script>\n" ^
+  "(function() {\n" ^
+  "  var source = new EventSource('/__reload');\n" ^
+  "  source.onmessage = function(e) {\n" ^
+  "    if (e.data === 'reload') window.location.reload();\n" ^
+  "  };\n" ^
+  "})();\n" ^
+  "</script>"
+
+let render_page ?(title = "Untitled") ?(css = []) ?(dev_mode = false) doc =
   let buf = Buffer.create 4096 in
   Buffer.add_string buf "<!DOCTYPE html>\n";
   Buffer.add_string buf "<html lang=\"en\">\n";
@@ -91,6 +101,7 @@ let render_page ?(title = "Untitled") ?(css = []) doc =
   Buffer.add_string buf "</head>\n";
   Buffer.add_string buf "<body>\n";
   List.iter (block_to_html buf) doc;
-  Buffer.add_string buf "</body>\n";
+  if dev_mode then Buffer.add_string buf reload_script;
+  Buffer.add_string buf "\n</body>\n";
   Buffer.add_string buf "</html>\n";
   Buffer.contents buf

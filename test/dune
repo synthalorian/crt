@@ -13,3 +13,7 @@
 (test
  (name test_renderer_build)
  (libraries crt_lib))
+
+(test
+ (name test_watcher)
+ (libraries crt_lib))

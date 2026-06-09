@@ -66,7 +66,7 @@ let output_path_for ~input_dir ~output_dir input_path =
   ensure_dir out_dir;
   Filename.concat out_dir html_name
 
-let build_file ~input_path ~output_path () =
+let build_file ~input_path ~output_path ?(dev_mode = false) () =
   try
     let content = read_file input_path in
     let doc = Transform.parse content in
@@ -91,14 +91,14 @@ let build_file ~input_path ~output_path () =
       | Some t -> t
       | None -> Filename.basename input_path
     in
-    let html = Renderer.render_page ~title doc in
+    let html = Renderer.render_page ~title ~dev_mode doc in
     write_file output_path html;
     Printf.printf "  [build] %s -> %s\n%!" input_path output_path;
     Ok ()
   with exn ->
     Error (Printexc.to_string exn)
 
-let build ~input_dir ~output_dir () =
+let build ~input_dir ~output_dir ?(dev_mode = false) () =
   Printf.printf "[build] Building from %s to %s\n%!" input_dir output_dir;
   ensure_dir output_dir;
   let files = collect_markdown [] input_dir in
@@ -108,7 +108,7 @@ let build ~input_dir ~output_dir () =
     Printf.printf "[build] Found %d markdown file(s)\n%!" (List.length files);
   let results = List.map (fun input_path ->
     let output_path = output_path_for ~input_dir ~output_dir input_path in
-    build_file ~input_path ~output_path ()
+    build_file ~input_path ~output_path ~dev_mode ()
   ) files in
   let errors = List.filter_map (function Error e -> Some e | Ok () -> None) results in
   match errors with
@@ -119,10 +119,10 @@ let build ~input_dir ~output_dir () =
       Printf.printf "[build] Build completed with %d error(s).\n%!" (List.length errors);
       Error (String.concat "\n" errors)
 
-let build_with_watch ~input_dir ~output_dir ~delay () =
-  let result = build ~input_dir ~output_dir () in
+let build_with_watch ~input_dir ~output_dir ~delay ?(dev_mode = false) ?(on_build_complete = fun () -> ()) () =
+  let result = build ~input_dir ~output_dir ~dev_mode () in
   (match result with
-  | Ok () -> ()
+  | Ok () -> on_build_complete ()
   | Error e -> Printf.printf "[build] Initial build failed: %s\n%!" e);
   
   let should_stop = ref false in
@@ -135,10 +135,43 @@ let build_with_watch ~input_dir ~output_dir ~delay () =
     ~delay
     ~on_change:(fun _changed_files ->
       Printf.printf "[build] Rebuilding...\n%!";
-      match build ~input_dir ~output_dir () with
-      | Ok () -> ()
+      match build ~input_dir ~output_dir ~dev_mode () with
+      | Ok () -> on_build_complete ()
       | Error e -> Printf.printf "[build] Rebuild failed: %s\n%!" e
     )
     ~should_stop:(fun () -> !should_stop);
   
+  Ok ()
+
+let serve ~input_dir ~output_dir ~port ~delay () =
+  let server = Server.create ~port () in
+  let should_stop = ref false in
+  let handle_signal _ = should_stop := true; Server.stop server in
+  Sys.set_signal Sys.sigint (Signal_handle handle_signal);
+  Sys.set_signal Sys.sigterm (Signal_handle handle_signal);
+  
+  (* Run server in a background thread *)
+  let server_thread = Thread.create (fun () ->
+    Server.run server ~doc_root:output_dir ()
+  ) () in
+  
+  (* Give server time to start *)
+  Thread.delay 0.1;
+  
+  (* Start build + watch with reload broadcasting *)
+  let result = build_with_watch
+    ~input_dir
+    ~output_dir
+    ~delay
+    ~dev_mode:true
+    ~on_build_complete:(fun () -> Server.broadcast_reload server)
+    ()
+  in
+  
+  (match result with
+  | Ok () -> ()
+  | Error e -> Printf.eprintf "Error: %s\n" e);
+  
+  Server.stop server;
+  Thread.join server_thread;
   Ok ()
