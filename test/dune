@@ -9,3 +9,7 @@
 (test
  (name test_transform)
  (libraries crt_lib))
+
+(test
+ (name test_renderer_build)
+ (libraries crt_lib))

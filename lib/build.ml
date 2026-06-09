@@ -1,0 +1,144 @@
+(** Build engine for the static site generator.
+
+    Orchestrates the pipeline: find markdown files, process through
+    transforms, and write HTML output.
+*)
+
+let ensure_dir path =
+  if not (Sys.file_exists path && Sys.is_directory path) then
+    Sys.mkdir path 0o755
+
+let read_file path =
+  let ic = open_in path in
+  let n = in_channel_length ic in
+  let s = really_input_string ic n in
+  close_in ic;
+  s
+
+let write_file path content =
+  let oc = open_out path in
+  output_string oc content;
+  close_out oc
+
+let is_markdown path =
+  Filename.check_suffix path ".md" ||
+  Filename.check_suffix path ".markdown"
+
+let rec collect_markdown acc dir =
+  try
+    let entries = Sys.readdir dir in
+    Array.fold_left (fun acc entry ->
+      let path = Filename.concat dir entry in
+      if Sys.is_directory path then
+        if entry <> "_build" && entry <> ".git" && entry <> "node_modules" then
+          collect_markdown acc path
+        else
+          acc
+      else if is_markdown path then
+        path :: acc
+      else
+        acc
+    ) acc entries
+  with _ -> acc
+
+let relative_path base path =
+  let base_len = String.length base in
+  let path_len = String.length path in
+  if path_len > base_len && String.sub path 0 base_len = base then
+    let start = if path.[base_len] = '/' then base_len + 1 else base_len in
+    String.sub path start (path_len - start)
+  else
+    path
+
+let output_path_for ~input_dir ~output_dir input_path =
+  let rel = relative_path input_dir input_path in
+  let html_name =
+    let base = Filename.basename rel in
+    if Filename.check_suffix base ".md" then
+      Filename.chop_suffix base ".md" ^ ".html"
+    else if Filename.check_suffix base ".markdown" then
+      Filename.chop_suffix base ".markdown" ^ ".html"
+    else
+      base ^ ".html"
+  in
+  let dir_part = Filename.dirname rel in
+  let out_dir = if dir_part = "." then output_dir else Filename.concat output_dir dir_part in
+  ensure_dir out_dir;
+  Filename.concat out_dir html_name
+
+let build_file ~input_path ~output_path () =
+  try
+    let content = read_file input_path in
+    let doc = Transform.parse content in
+    let doc = Transform.toc doc in
+    let doc = Transform.highlight doc in
+    let title =
+      let rec find_h1 = function
+        | [] -> None
+        | Ast.Heading { level = 1; content } :: _ ->
+            let rec text_of_inline = function
+              | Ast.Text s -> s
+              | Ast.Bold children | Ast.Italic children ->
+                  String.concat "" (List.map text_of_inline children)
+              | Ast.Code s -> s
+              | Ast.Link { text; _ } -> String.concat "" (List.map text_of_inline text)
+              | Ast.Break -> " "
+            in
+            Some (String.concat "" (List.map text_of_inline content))
+        | _ :: rest -> find_h1 rest
+      in
+      match find_h1 doc with
+      | Some t -> t
+      | None -> Filename.basename input_path
+    in
+    let html = Renderer.render_page ~title doc in
+    write_file output_path html;
+    Printf.printf "  [build] %s -> %s\n%!" input_path output_path;
+    Ok ()
+  with exn ->
+    Error (Printexc.to_string exn)
+
+let build ~input_dir ~output_dir () =
+  Printf.printf "[build] Building from %s to %s\n%!" input_dir output_dir;
+  ensure_dir output_dir;
+  let files = collect_markdown [] input_dir in
+  if files = [] then
+    Printf.printf "[build] No markdown files found in %s\n%!" input_dir
+  else
+    Printf.printf "[build] Found %d markdown file(s)\n%!" (List.length files);
+  let results = List.map (fun input_path ->
+    let output_path = output_path_for ~input_dir ~output_dir input_path in
+    build_file ~input_path ~output_path ()
+  ) files in
+  let errors = List.filter_map (function Error e -> Some e | Ok () -> None) results in
+  match errors with
+  | [] ->
+      Printf.printf "[build] Build complete.\n%!";
+      Ok ()
+  | _ ->
+      Printf.printf "[build] Build completed with %d error(s).\n%!" (List.length errors);
+      Error (String.concat "\n" errors)
+
+let build_with_watch ~input_dir ~output_dir ~delay () =
+  let result = build ~input_dir ~output_dir () in
+  (match result with
+  | Ok () -> ()
+  | Error e -> Printf.printf "[build] Initial build failed: %s\n%!" e);
+  
+  let should_stop = ref false in
+  let handle_signal _ = should_stop := true in
+  Sys.set_signal Sys.sigint (Signal_handle handle_signal);
+  Sys.set_signal Sys.sigterm (Signal_handle handle_signal);
+  
+  Watcher.watch
+    ~dir:input_dir
+    ~delay
+    ~on_change:(fun _changed_files ->
+      Printf.printf "[build] Rebuilding...\n%!";
+      match build ~input_dir ~output_dir () with
+      | Ok () -> ()
+      | Error e -> Printf.printf "[build] Rebuild failed: %s\n%!" e
+    )
+    ~should_stop:(fun () -> !should_stop);
+  
+  Ok ()
