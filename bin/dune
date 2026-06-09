@@ -1,0 +1,4 @@
+(executable
+ (public_name crt)
+ (name main)
+ (libraries crt_lib))
