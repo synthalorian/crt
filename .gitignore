@@ -1,0 +1,6 @@
+_build/
+*.install
+*.merlin
+dune-workspace
+dune-project.user
+.opam/
