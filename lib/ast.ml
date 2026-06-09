@@ -20,6 +20,7 @@ type block =
   | CodeBlock of { language : string option; code : string }
   | List of { ordered : bool; items : block list list }
   | ThematicBreak
+  | Raw_html of string  (** Pre-rendered HTML content, passed through verbatim. *)
 
 (** A document is an ordered list of blocks. *)
 type doc = block list

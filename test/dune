@@ -5,3 +5,7 @@
 (test
  (name test_pipeline)
  (libraries crt_lib))
+
+(test
+ (name test_transform)
+ (libraries crt_lib))

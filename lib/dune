@@ -1,7 +1,7 @@
 (library
  (name crt_lib)
  (public_name crt)
- (modules ast lexer parser markdown pipeline renderer)
+ (modules ast lexer parser markdown pipeline renderer transform)
  (libraries menhirLib))
 
 (menhir
