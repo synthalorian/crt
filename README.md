@@ -4,7 +4,7 @@
 
 **Language:** OCaml  
 **Constraint:** Text is the universal interface  
-**Stack:** dune, menhir, omd/markdown parser, tyxml
+**Stack:** dune, menhir, custom markdown parser, tyxml
 
 ---
 
@@ -22,14 +22,14 @@
 
 ## Development Plan
 
-1. Phase 1: Markdown parser (menhir grammar)
-2. Phase 2: DAG pipeline engine (functional composition)
-3. Phase 3: Core transforms: parse, highlight, toc
-4. Phase 4: HTML generation (tyxml)
-5. Phase 5: File watcher + hot reload
-6. Phase 6: Incremental build cache
-7. Phase 7: Plugin system (dynamic module loading)
-8. Phase 8: Theme engine and template inheritance
+- [x] Phase 1: Markdown parser (menhir grammar)
+- [x] Phase 2: DAG pipeline engine (functional composition)
+- [ ] Phase 3: Core transforms: parse, highlight, toc
+- [ ] Phase 4: HTML generation (tyxml)
+- [ ] Phase 5: File watcher + hot reload
+- [ ] Phase 6: Incremental build cache
+- [ ] Phase 7: Plugin system (dynamic module loading)
+- [ ] Phase 8: Theme engine and template inheritance
 
 ---
 
@@ -42,14 +42,19 @@
 ### Build
 
 ```bash
-# See PLAN.md for detailed build instructions per phase
-cd crt
+dune build
+```
+
+### Test
+
+```bash
+dune test
 ```
 
 ### Run
 
 ```bash
-# See PLAN.md for run instructions
+dune exec crt
 ```
 
 ---

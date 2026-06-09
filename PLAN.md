@@ -17,12 +17,16 @@ Static site generator that treats content as a signal pipeline — markdown in, 
 **Goal:** Phase 1: Markdown parser (menhir grammar)
 
 **Deliverables:**
-- [ ] Core implementation
-- [ ] Tests
-- [ ] Documentation update
+- [x] Core implementation
+- [x] Tests
+- [x] Documentation update
 
 **Notes:**
-- 
+- Implemented a menhir/ocamllex parser in `lib/parser.mly`, `lib/lexer.mll`, `lib/markdown.ml`, backed by `lib/ast.ml`.
+- Supported block elements: paragraphs, ATX headings (# ## ###), fenced code blocks, thematic breaks, blockquotes, unordered/ordered lists.
+- Supported inline elements: text, bold (`**` / `__`), italic (`*` / `_`), inline code (`` ` ``), links (`[text](url)`), hard breaks.
+- Added 16 parser unit tests in `test/test_parser.ml` covering all supported block and inline forms.
+- Updated `dune-project` to use OCaml 5.2+ (required for GCC 16 compatibility on the build host).
 
 ---
 
@@ -31,12 +35,18 @@ Static site generator that treats content as a signal pipeline — markdown in, 
 **Goal:** Phase 2: DAG pipeline engine (functional composition)
 
 **Deliverables:**
-- [ ] Core implementation
-- [ ] Tests
-- [ ] Documentation update
+- [x] Core implementation
+- [x] Tests
+- [x] Documentation update
 
 **Notes:**
-- 
+- Implemented a GADT-based DAG pipeline engine in `lib/pipeline.ml`/`lib/pipeline.mli`.
+- Supports pure values, function application (`arr`/`map`), monadic bind for sequencing, and `pair` for parallel composition (fork/join).
+- Named nodes via `node` for observability/introspection.
+- Error handling via `run` which catches exceptions and returns `('a, exn) result`.
+- Added `trace` for debugging side effects.
+- Added 28 pipeline unit tests in `test/test_pipeline.ml` covering pure, map, bind, pair, complex DAGs, error handling, and AST integration.
+- All 44 tests pass (16 parser + 28 pipeline).
 
 ---
 

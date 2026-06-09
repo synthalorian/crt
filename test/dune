@@ -1,0 +1,7 @@
+(test
+ (name test_parser)
+ (libraries crt_lib))
+
+(test
+ (name test_pipeline)
+ (libraries crt_lib))
