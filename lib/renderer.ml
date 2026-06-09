@@ -105,3 +105,25 @@ let render_page ?(title = "Untitled") ?(css = []) ?(dev_mode = false) doc =
   Buffer.add_string buf "\n</body>\n";
   Buffer.add_string buf "</html>\n";
   Buffer.contents buf
+
+let render_page_with_theme ?(title = "Untitled") ?(css = []) ?(dev_mode = false) ?(template = "page.html") theme doc =
+  let content_html =
+    let buf = Buffer.create 4096 in
+    List.iter (block_to_html buf) doc;
+    if dev_mode then Buffer.add_string buf reload_script;
+    Buffer.contents buf
+  in
+  let css_links =
+    List.map (fun href -> Printf.sprintf "<link rel=\"stylesheet\" href=\"%s\">" (escape_html href)) css
+  in
+  match
+    Theme.render_page theme ~template
+      ~vars:[
+        ("title", title);
+        ("content", content_html);
+        ("css", String.concat "\n" css_links);
+      ]
+      content_html
+  with
+  | Ok html -> html
+  | Error _ -> render_page ~title ~css ~dev_mode doc

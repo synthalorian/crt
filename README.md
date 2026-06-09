@@ -27,9 +27,9 @@
 - [ ] Phase 3: Core transforms: parse, highlight, toc
 - [ ] Phase 4: HTML generation (tyxml)
 - [ ] Phase 5: File watcher + hot reload
-- [ ] Phase 6: Incremental build cache
-- [ ] Phase 7: Plugin system (dynamic module loading)
-- [ ] Phase 8: Theme engine and template inheritance
+- [x] Phase 6: Incremental build cache
+- [x] Phase 7: Plugin system (dynamic module loading)
+- [x] Phase 8: Theme engine and template inheritance
 
 ---
 

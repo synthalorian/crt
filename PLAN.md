@@ -141,12 +141,29 @@ Static site generator that treats content as a signal pipeline — markdown in, 
 **Goal:** Phase 8: Theme engine and template inheritance
 
 **Deliverables:**
-- [ ] Core implementation
-- [ ] Tests
-- [ ] Documentation update
+- [x] Core implementation
+- [x] Tests
+- [x] Documentation update
 
 **Notes:**
-- 
+- Implemented `Template` module in `lib/template.ml`/`lib/template.mli` with lightweight template syntax:
+  - Variable substitution: `{{ variable }}`
+  - Block definitions: `{% block name %}...{% endblock %}`
+  - Template inheritance: `{% extends "base.html" %}`
+  - Include partials: `{% include "partial.html" %}`
+  - Conditionals: `{% if var %}...{% else %}...{% endif %}`
+  - For loops: `{% for item in items %}...{% endfor %}`
+- Implemented `Theme` module in `lib/theme.ml`/`lib/theme.mli`:
+  - Theme loading from directories with `theme.txt` metadata
+  - Template resolution and caching
+  - Static asset copying via `copy_static`
+  - Default theme generation via `write_default_theme`
+- Integrated theme engine into build pipeline:
+  - `Build.build` accepts optional `?theme_dir` parameter
+  - `Renderer.render_page_with_theme` wraps content in theme templates
+  - Static assets copied to output directory during build
+- Added 39 theme/template unit tests in `test/test_theme.ml` covering parsing, rendering, inheritance, includes, theme loading, and build integration.
+- All 176 tests pass (16 parser + 28 pipeline + 16 transform + 15 renderer/build + 34 plugin + 20 cache + 39 theme + 8 watcher). 
 
 ---
 

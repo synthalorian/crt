@@ -25,3 +25,7 @@
 (test
  (name test_plugin)
  (libraries crt_lib))
+
+(test
+ (name test_theme)
+ (libraries crt_lib))

@@ -72,7 +72,7 @@ let get_mtime path =
     stats.Unix.st_mtime
   with _ -> 0.0
 
-let build_file ~cache ~input_path ~output_path ?(dev_mode = false) () =
+let build_file ~cache ~input_path ~output_path ?(dev_mode = false) ?theme () =
   try
     let mtime = get_mtime input_path in
     let cache_key = "build:" ^ input_path in
@@ -114,7 +114,11 @@ let build_file ~cache ~input_path ~output_path ?(dev_mode = false) () =
           | Some t -> t
           | None -> Filename.basename input_path
         in
-        let html = Renderer.render_page ~title ~dev_mode doc in
+        let html =
+          match theme with
+          | Some t -> Renderer.render_page_with_theme ~title ~dev_mode t doc
+          | None -> Renderer.render_page ~title ~dev_mode doc
+        in
         (* Apply post-render HTML hooks *)
         let html = Plugin.apply_html_hooks html in
         write_file output_path html;
@@ -138,11 +142,31 @@ let load_plugins ?plugin_dir () =
       else
         Printf.printf "[build] Plugin directory not found: %s (skipping)\n%!" dir
 
-let build ~input_dir ~output_dir ?(dev_mode = false) ?(cache_dir = ".crt_cache") ?plugin_dir () =
+let load_theme ?theme_dir () =
+  match theme_dir with
+  | None -> None
+  | Some dir ->
+      if Sys.file_exists dir && Sys.is_directory dir then
+        match Theme.load dir with
+        | Ok theme ->
+            Printf.printf "[build] Loaded theme from %s\n%!" dir;
+            Some theme
+        | Error msg ->
+            Printf.eprintf "[build] Theme loading error: %s\n%!" msg;
+            None
+      else (
+        Printf.printf "[build] Theme directory not found: %s (skipping)\n%!" dir;
+        None)
+
+let build ~input_dir ~output_dir ?(dev_mode = false) ?(cache_dir = ".crt_cache") ?plugin_dir ?theme_dir () =
   Printf.printf "[build] Building from %s to %s\n%!" input_dir output_dir;
   ensure_dir output_dir;
-  (* Load plugins before building *)
+  (* Load plugins and theme before building *)
   load_plugins ?plugin_dir ();
+  let theme = load_theme ?theme_dir () in
+  (match theme with
+  | Some t -> Theme.copy_static t output_dir
+  | None -> ());
   let cache = Cache.create ~dir:cache_dir in
   let files = collect_markdown [] input_dir in
   if files = [] then
@@ -151,7 +175,7 @@ let build ~input_dir ~output_dir ?(dev_mode = false) ?(cache_dir = ".crt_cache")
     Printf.printf "[build] Found %d markdown file(s)\n%!" (List.length files);
   let results = List.map (fun input_path ->
     let output_path = output_path_for ~input_dir ~output_dir input_path in
-    build_file ~cache ~input_path ~output_path ~dev_mode ()
+    build_file ~cache ~input_path ~output_path ~dev_mode ?theme ()
   ) files in
   let errors = List.filter_map (function Error e -> Some e | Ok () -> None) results in
   match errors with
@@ -162,8 +186,8 @@ let build ~input_dir ~output_dir ?(dev_mode = false) ?(cache_dir = ".crt_cache")
       Printf.printf "[build] Build completed with %d error(s).\n%!" (List.length errors);
       Error (String.concat "\n" errors)
 
-let build_with_watch ~input_dir ~output_dir ~delay ?(dev_mode = false) ?(cache_dir = ".crt_cache") ?plugin_dir ?(on_build_complete = fun () -> ()) () =
-  let result = build ~input_dir ~output_dir ~dev_mode ~cache_dir ?plugin_dir () in
+let build_with_watch ~input_dir ~output_dir ~delay ?(dev_mode = false) ?(cache_dir = ".crt_cache") ?plugin_dir ?theme_dir ?(on_build_complete = fun () -> ()) () =
+  let result = build ~input_dir ~output_dir ~dev_mode ~cache_dir ?plugin_dir ?theme_dir () in
   (match result with
   | Ok () -> on_build_complete ()
   | Error e -> Printf.printf "[build] Initial build failed: %s\n%!" e);
@@ -178,7 +202,7 @@ let build_with_watch ~input_dir ~output_dir ~delay ?(dev_mode = false) ?(cache_d
     ~delay
     ~on_change:(fun _changed_files ->
       Printf.printf "[build] Rebuilding...\n%!";
-      match build ~input_dir ~output_dir ~dev_mode ~cache_dir ?plugin_dir () with
+      match build ~input_dir ~output_dir ~dev_mode ~cache_dir ?plugin_dir ?theme_dir () with
       | Ok () -> on_build_complete ()
       | Error e -> Printf.printf "[build] Rebuild failed: %s\n%!" e
     )
@@ -186,7 +210,7 @@ let build_with_watch ~input_dir ~output_dir ~delay ?(dev_mode = false) ?(cache_d
 
   Ok ()
 
-let serve ~input_dir ~output_dir ~port ~delay ?(cache_dir = ".crt_cache") ?plugin_dir () =
+let serve ~input_dir ~output_dir ~port ~delay ?(cache_dir = ".crt_cache") ?plugin_dir ?theme_dir () =
   let server = Server.create ~port () in
   let should_stop = ref false in
   let handle_signal _ = should_stop := true; Server.stop server in
@@ -209,6 +233,7 @@ let serve ~input_dir ~output_dir ~port ~delay ?(cache_dir = ".crt_cache") ?plugi
     ~dev_mode:true
     ~cache_dir
     ?plugin_dir
+    ?theme_dir
     ~on_build_complete:(fun () -> Server.broadcast_reload server)
     ()
   in
