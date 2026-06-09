@@ -1,8 +1,8 @@
 (library
  (name crt_lib)
  (public_name crt)
- (modules ast lexer parser markdown pipeline renderer transform watcher build server cache)
- (libraries menhirLib tyxml unix threads))
+ (modules ast lexer parser markdown pipeline renderer transform watcher build server cache plugin)
+ (libraries menhirLib tyxml unix threads dynlink))
 
 (menhir
  (modules parser)

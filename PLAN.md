@@ -117,12 +117,22 @@ Static site generator that treats content as a signal pipeline — markdown in, 
 **Goal:** Phase 7: Plugin system (dynamic module loading)
 
 **Deliverables:**
-- [ ] Core implementation
-- [ ] Tests
-- [ ] Documentation update
+- [x] Core implementation
+- [x] Tests
+- [x] Documentation update
 
 **Notes:**
-- 
+- Implemented `Plugin` module in `lib/plugin.ml`/`lib/plugin.mli` with dynamic module loading via OCaml's `Dynlink`.
+- Plugin interface supports:
+  - **Transforms**: Named `Ast.doc -> Ast.doc` functions applied during build
+  - **Doc hooks**: Stage-specific hooks (`Post_parse`, `Pre_render`) for AST manipulation
+  - **HTML hooks**: Post-render string transforms for HTML output modification
+- Global plugin registry with `register`/`clear_registry`/`registry` functions.
+- Dynamic loading: `load_cmxs` for single `.cmxs` files, `load_dir` for scanning plugin directories.
+- Integrated into `Build.build_file` pipeline: Post_parse hooks run after parsing, plugin transforms run after built-in transforms, Pre_render hooks run before rendering, HTML hooks run after HTML generation.
+- Added `?plugin_dir` parameter to `build`, `build_with_watch`, and `serve` functions.
+- Added 34 plugin unit tests in `test/test_plugin.ml` covering creation, registration, hooks, transforms, HTML hooks, multiple plugins, error handling, and integration.
+- All 137 tests pass (16 parser + 28 pipeline + 16 transform + 15 renderer/build + 34 plugin + 20 cache + 8 watcher).
 
 ---
 
