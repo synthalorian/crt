@@ -1,6 +1,7 @@
 (lang dune 3.14)
 (using menhir 3.0)
 (name crt)
+(version 1.0.0)
 (generate_opam_files true)
 (license MIT)
 (authors "synth")

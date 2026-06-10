@@ -24,9 +24,9 @@
 
 - [x] Phase 1: Markdown parser (menhir grammar)
 - [x] Phase 2: DAG pipeline engine (functional composition)
-- [ ] Phase 3: Core transforms: parse, highlight, toc
-- [ ] Phase 4: HTML generation (tyxml)
-- [ ] Phase 5: File watcher + hot reload
+- [x] Phase 3: Core transforms: parse, highlight, toc
+- [x] Phase 4: HTML generation (tyxml)
+- [x] Phase 5: File watcher + hot reload
 - [x] Phase 6: Incremental build cache
 - [x] Phase 7: Plugin system (dynamic module loading)
 - [x] Phase 8: Theme engine and template inheritance

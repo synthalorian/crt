@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Page</title>
+
+</head>
+<body>
+<h2>Table of Contents</h2>
+<ul>
+<li><p>• <a href="#test-page">Test Page</a></p>
+</li>
+</ul>
+<h1>Test Page</h1>
+<p>Hello from theme. </p>
+
+
+</body>
+</html>
