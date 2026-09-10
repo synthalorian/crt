@@ -3,7 +3,7 @@ opam-version: "2.0"
 version: "1.0.0"
 synopsis: "Static site generator as a functional signal pipeline"
 authors: ["synth"]
-license: "MIT"
+license: "Apache-2.0"
 depends: [
   "ocaml" {>= "5.2"}
   "dune" {>= "3.14"}
