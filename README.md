@@ -1,3 +1,5 @@
+![crt](.github/preview.png)
+
 # crt
 
 > Static site generator that treats content as a signal pipeline — markdown in, processed through a functional DAG of transforms, HTML out.
